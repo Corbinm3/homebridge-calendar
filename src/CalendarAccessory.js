@@ -46,16 +46,15 @@ class CalendarAccessory {
     return this._services;
   }
 
-  createServices() {
-    const services = [
-      this.getAccessoryInformationService(),
-      this.getBridgingStateService(),
-      ...this.getSensors()
-    ];
+ createServices() {
+  const services = [
+    this.getAccessoryInformationService(),
+    this.getBridgingStateService(),
+    ...this.getSensors()
+  ].filter(Boolean);
 
-    return services;
-  }
-
+  return services;
+}
   getAccessoryInformationService() {
     return new Service.AccessoryInformation()
       .setCharacteristic(Characteristic.Name, this.name)
@@ -66,15 +65,22 @@ class CalendarAccessory {
       .setCharacteristic(Characteristic.HardwareRevision, this.version);
   }
 
-  getBridgingStateService() {
-    this._bridgingStateService = new Service.BridgingState()
-      .setCharacteristic(Characteristic.Reachable, false)
-      .setCharacteristic(Characteristic.LinkQuality, 4)
-      .setCharacteristic(Characteristic.AccessoryIdentifier, this.name)
-      .setCharacteristic(Characteristic.Category, Accessory.Categories.SWITCH);
-
-    return this._bridgingStateService;
+getBridgingStateService() {
+  // Homebridge 2 / HAP-NodeJS 2 removed legacy BridgingState service.
+  // Keep backwards compatibility for Homebridge 1.x, but skip it on 2.x.
+  if (!Service.BridgingState) {
+    this._bridgingStateService = undefined;
+    return undefined;
   }
+
+  this._bridgingStateService = new Service.BridgingState()
+    .setCharacteristic(Characteristic.Reachable, false)
+    .setCharacteristic(Characteristic.LinkQuality, 4)
+    .setCharacteristic(Characteristic.AccessoryIdentifier, this.name)
+    .setCharacteristic(Characteristic.Category, Accessory.Categories.SWITCH);
+
+  return this._bridgingStateService;
+}
 
   getSensors() {
 
@@ -112,11 +118,15 @@ class CalendarAccessory {
     callback();
   }
 
-  _setReachable(reachable) {
-    this._bridgingStateService
-      .getCharacteristic(Characteristic.Reachable)
-      .updateValue(reachable);
+_setReachable(reachable) {
+  if (!this._bridgingStateService) {
+    return;
   }
+
+  this._bridgingStateService
+    .getCharacteristic(Characteristic.Reachable)
+    .updateValue(reachable);
+}
 
   _onPollingStarted() {
     this.log(`Polling calendar ${this.name} has started.`);
